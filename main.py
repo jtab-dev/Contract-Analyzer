@@ -1,18 +1,19 @@
-#
 # Upload PNG option
 # Take text from PNG
 # Analyze Text based off of Database stuff
-#
+
 from pathlib import Path
 import os
 import time
 import shutil
 
 import streamlit as st
+import pymupdf
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # Upload a File
-st.title("Upload a File")
-uploaded_file = st.file_uploader("Choose a file")
+st.title("Contract Analyzer")
+uploaded_file = st.file_uploader("Choose a file to analyze")
 
 if uploaded_file is not None:
     folder = Path("uploads")
@@ -39,9 +40,21 @@ if not empty:
         time.sleep(0.02)
 
 # --------- MACHINE LEARNING PIPELINE ----------------
-# --------- MACHINE LEARNING PIPELINE ----------------
+positive = ["is covered", "are covered"]
+negative = ["not covered"]
+
+doc = pymupdf.open("archive/.pdf")
+analyzer = SentimentIntensityAnalyzer()
+for pages in doc:
+    scores = analyzer.polarity_scores(
+        pages.get_text()
+    )  # NEED TEXT PARAMETER BASE IT OFF ARCHIVE
 # --------- MACHINE LEARNING PIPELINE ----------------
 
-# Put Uploaded Files into the Archive
+# --------- OUTPUT ------------
+# --------- OUTPUT ------------
+# --------- OUTPUT ------------
+
+# Put Uploaded Files into the Archive for furhter Reference
 for file in os.scandir("uploads"):
     shutil.move("uploads/" + file.name, "archive/" + file.name)
