@@ -1,0 +1,310 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private authenticated user profile storing owner identity and basic account metadata.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified account email address.",
+          "maxLength": 320
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name.",
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": ["uid", "email", "displayName", "createdAt", "updatedAt"]
+    },
+    "AnalysisRule": {
+      "title": "AnalysisRule",
+      "description": "User-defined legal clause and risk detection rule stored in Google Firestore.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Hidden Fee",
+            "Auto-Renewal",
+            "Early Termination Penalty",
+            "Liability Limitation",
+            "One-Sided Obligation",
+            "Unclear Condition"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["High", "Medium", "Low"]
+        },
+        "keywords": {
+          "type": "array",
+          "description": "Phrases or keywords matched by the rule engine."
+        },
+        "whyItMatters": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "title",
+        "category",
+        "severity",
+        "keywords",
+        "whyItMatters",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ContractRecord": {
+      "title": "ContractRecord",
+      "description": "Analyzed contract record stored in the Google Firestore Digital Contract Archive with summary, risks, contradictions, authenticity indicators, lock status, and OCR text.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique document ID matching the Firestore document key.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "UID of the user who owns this archived contract.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable contract title.",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "category": {
+          "type": "string",
+          "description": "US Health Insurance plan classification or legacy contract category.",
+          "enum": [
+            "ACA Marketplace",
+            "Employer PPO / EPO",
+            "HMO / Managed Care",
+            "HDHP + HSA",
+            "Medicare / Medigap",
+            "Short-Term Medical",
+            "Dental / Vision",
+            "Non-Insurance Document",
+            "Employment",
+            "Rental / Lease",
+            "Service Agreement",
+            "NDA",
+            "SaaS / Licensing",
+            "Partnership",
+            "Vendor / Supply",
+            "Non-Contract",
+            "Other"
+          ]
+        },
+        "isContract": {
+          "type": "boolean",
+          "description": "Whether the uploaded document was identified as a health insurance policy or binding contract."
+        },
+        "documentType": {
+          "type": "string",
+          "description": "Specific detected document type label.",
+          "maxLength": 120
+        },
+        "confidenceNote": {
+          "type": "string",
+          "description": "Explanation of why the document was or was not classified as a policy/contract.",
+          "maxLength": 1000
+        },
+        "versionGroupId": {
+          "type": "string",
+          "description": "Shared identifier grouping older and newer versions of the same policy.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "versionNumber": {
+          "type": "integer",
+          "description": "Sequential version number within the version group."
+        },
+        "sourceFileName": {
+          "type": "string",
+          "description": "Original uploaded file name or scan label.",
+          "maxLength": 260
+        },
+        "sourceMimeType": {
+          "type": "string",
+          "description": "MIME type of the analyzed source file.",
+          "maxLength": 120
+        },
+        "extractedText": {
+          "type": "string",
+          "description": "OCR / extracted plain text of the policy.",
+          "maxLength": 120000
+        },
+        "parties": {
+          "type": "array",
+          "description": "Detected insurer, employer/plan sponsor, and policyholder entities."
+        },
+        "keyDates": {
+          "type": "object",
+          "description": "Effective date, expiration date, renewal notice deadline, and duration."
+        },
+        "summary": {
+          "type": "object",
+          "description": "Structured plain-language summary of coverage, premiums/cost-share, and exclusions."
+        },
+        "clauses": {
+          "type": "array",
+          "description": "Detected policy clauses with section numbers, titles, and plain summaries."
+        },
+        "risks": {
+          "type": "array",
+          "description": "Exclusions, prior auth barriers, surprise billing risks, and one-sided conditions."
+        },
+        "contradictions": {
+          "type": "array",
+          "description": "Cross-section inconsistencies and conflicting policy clauses."
+        },
+        "missingSections": {
+          "type": "array",
+          "description": "Missing or incomplete standard policy disclosures and ACA protections."
+        },
+        "legalTerminology": {
+          "type": "array",
+          "description": "Recognized US health insurance and legal terms with plain-English definitions."
+        },
+        "authenticity": {
+          "type": "object",
+          "description": "Document completeness indicators and official insurer/entity registry lookup status."
+        },
+        "healthAnalysis": {
+          "type": "object",
+          "description": "US Health Insurance affordability, medical history eligibility, coverage history matrix, and TF-IDF + Multinomial Naive Bayes clause sentiment analysis."
+        },
+        "notes": {
+          "type": "string",
+          "description": "User annotations on the archived policy.",
+          "maxLength": 4000
+        },
+        "locked": {
+          "type": "boolean",
+          "description": "Whether this policy record is locked against edits in Firestore."
+        },
+        "lockedAt": {
+          "type": "string",
+          "description": "ISO timestamp when the record was locked in, or empty string.",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "title",
+        "category",
+        "isContract",
+        "documentType",
+        "confidenceNote",
+        "versionGroupId",
+        "versionNumber",
+        "sourceFileName",
+        "sourceMimeType",
+        "extractedText",
+        "parties",
+        "keyDates",
+        "summary",
+        "clauses",
+        "risks",
+        "contradictions",
+        "missingSections",
+        "legalTerminology",
+        "authenticity",
+        "healthAnalysis",
+        "notes",
+        "locked",
+        "lockedAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Owner-only user profile documents isolating user email and account metadata."
+    },
+    "/analysisRules/{ruleId}": {
+      "schema": {
+        "$ref": "#/entities/AnalysisRule"
+      },
+      "description": "Owner-scoped custom legal risk and clause rules stored in Google Firestore."
+    },
+    "/contracts/{contractId}": {
+      "schema": {
+        "$ref": "#/entities/ContractRecord"
+      },
+      "description": "Owner-scoped digital contract archive storing analyzed contracts, summaries, risks, contradictions, authenticity indicators, lock status, and version metadata."
+    }
+  }
+}

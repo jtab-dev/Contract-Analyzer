@@ -1,0 +1,351 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core helper primitives
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidCategory(category) {
+      return category in [
+        'ACA Marketplace',
+        'Employer PPO / EPO',
+        'HMO / Managed Care',
+        'HDHP + HSA',
+        'Medicare / Medigap',
+        'Short-Term Medical',
+        'Dental / Vision',
+        'Non-Insurance Document',
+        'Employment',
+        'Rental / Lease',
+        'Service Agreement',
+        'NDA',
+        'SaaS / Licensing',
+        'Partnership',
+        'Vendor / Supply',
+        'Non-Contract',
+        'Other'
+      ];
+    }
+
+    function isValidRiskCategory(category) {
+      return category in [
+        'Hidden Fee',
+        'Auto-Renewal',
+        'Early Termination Penalty',
+        'Liability Limitation',
+        'One-Sided Obligation',
+        'Unclear Condition'
+      ];
+    }
+
+    function isValidSeverity(severity) {
+      return severity in ['High', 'Medium', 'Low'];
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'createdAt', 'updatedAt'])
+        && data.uid is string
+        && data.uid == userId
+        && isValidId(data.uid)
+        && data.email is string
+        && data.email.size() >= 1
+        && data.email.size() <= 320
+        && data.displayName is string
+        && data.displayName.size() <= 120
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAnalysisRule(data, ruleId) {
+      return data.keys().hasAll([
+          'id',
+          'ownerId',
+          'title',
+          'category',
+          'severity',
+          'keywords',
+          'whyItMatters',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'ownerId',
+          'title',
+          'category',
+          'severity',
+          'keywords',
+          'whyItMatters',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id) && data.id == ruleId
+        && isValidId(data.ownerId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 160
+        && data.category is string && isValidRiskCategory(data.category)
+        && data.severity is string && isValidSeverity(data.severity)
+        && data.keywords is list && data.keywords.size() >= 1 && data.keywords.size() <= 10
+        && data.keywords[0] is string && data.keywords[0].size() >= 1 && data.keywords[0].size() <= 100
+        && data.whyItMatters is string && data.whyItMatters.size() >= 1 && data.whyItMatters.size() <= 1000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidKeyDates(kd) {
+      return kd is map
+        && kd.keys().hasAll(['effectiveDate', 'expirationDate', 'renewalNoticeDeadline', 'termDuration'])
+        && kd.keys().hasOnly(['effectiveDate', 'expirationDate', 'renewalNoticeDeadline', 'termDuration'])
+        && kd.effectiveDate is string && kd.effectiveDate.size() <= 120
+        && kd.expirationDate is string && kd.expirationDate.size() <= 120
+        && kd.renewalNoticeDeadline is string && kd.renewalNoticeDeadline.size() <= 120
+        && kd.termDuration is string && kd.termDuration.size() <= 120;
+    }
+
+    function isValidSummary(s) {
+      return s is map
+        && s.keys().hasAll([
+          'overview',
+          'paymentObligations',
+          'durationAndTermination',
+          'partyResponsibilities',
+          'importantLegalObligations'
+        ])
+        && s.keys().hasOnly([
+          'overview',
+          'paymentObligations',
+          'durationAndTermination',
+          'partyResponsibilities',
+          'importantLegalObligations'
+        ])
+        && s.overview is string && s.overview.size() <= 4000
+        && s.paymentObligations is string && s.paymentObligations.size() <= 4000
+        && s.durationAndTermination is string && s.durationAndTermination.size() <= 4000
+        && s.partyResponsibilities is list && s.partyResponsibilities.size() <= 20
+        && (s.partyResponsibilities.size() == 0 || s.partyResponsibilities[0] is map)
+        && s.importantLegalObligations is list && s.importantLegalObligations.size() <= 30
+        && (s.importantLegalObligations.size() == 0 || s.importantLegalObligations[0] is string);
+    }
+
+    function isValidAuthenticity(a) {
+      return a is map
+        && a.keys().hasAll(['overallIndicator', 'disclaimer', 'checks', 'registryMatches'])
+        && a.keys().hasOnly(['overallIndicator', 'disclaimer', 'checks', 'registryMatches'])
+        && a.overallIndicator is string && a.overallIndicator.size() <= 60
+        && a.disclaimer is string && a.disclaimer.size() <= 1000
+        && a.checks is list && a.checks.size() <= 30
+        && (a.checks.size() == 0 || a.checks[0] is map)
+        && a.registryMatches is list && a.registryMatches.size() <= 10
+        && (a.registryMatches.size() == 0 || a.registryMatches[0] is map);
+    }
+
+    function isValidHealthAnalysis(h) {
+      return h is map
+        && h.keys().hasAll([
+          'planType',
+          'acaCompliant',
+          'extractedPlanCosts',
+          'medicalProfile',
+          'financialProfile',
+          'affordability',
+          'eligibility',
+          'mlSentiment'
+        ])
+        && h.keys().hasOnly([
+          'planType',
+          'acaCompliant',
+          'extractedPlanCosts',
+          'medicalProfile',
+          'financialProfile',
+          'affordability',
+          'eligibility',
+          'mlSentiment'
+        ])
+        && h.planType is string && h.planType.size() <= 80
+        && h.acaCompliant is bool
+        && h.extractedPlanCosts is map
+        && h.medicalProfile is map
+        && h.financialProfile is map
+        && h.affordability is map
+        && h.eligibility is map
+        && h.mlSentiment is map;
+    }
+
+    function isValidContract(data, contractId) {
+      return data.keys().hasAll([
+          'id',
+          'ownerId',
+          'title',
+          'category',
+          'isContract',
+          'documentType',
+          'confidenceNote',
+          'versionGroupId',
+          'versionNumber',
+          'sourceFileName',
+          'sourceMimeType',
+          'extractedText',
+          'parties',
+          'keyDates',
+          'summary',
+          'clauses',
+          'risks',
+          'contradictions',
+          'missingSections',
+          'legalTerminology',
+          'authenticity',
+          'healthAnalysis',
+          'notes',
+          'locked',
+          'lockedAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'ownerId',
+          'title',
+          'category',
+          'isContract',
+          'documentType',
+          'confidenceNote',
+          'versionGroupId',
+          'versionNumber',
+          'sourceFileName',
+          'sourceMimeType',
+          'extractedText',
+          'parties',
+          'keyDates',
+          'summary',
+          'clauses',
+          'risks',
+          'contradictions',
+          'missingSections',
+          'legalTerminology',
+          'authenticity',
+          'healthAnalysis',
+          'notes',
+          'locked',
+          'lockedAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && isValidId(data.id) && data.id == contractId
+        && isValidId(data.ownerId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 240
+        && data.category is string && isValidCategory(data.category)
+        && data.isContract is bool
+        && data.documentType is string && data.documentType.size() <= 120
+        && data.confidenceNote is string && data.confidenceNote.size() <= 1000
+        && isValidId(data.versionGroupId)
+        && data.versionNumber is int && data.versionNumber >= 1 && data.versionNumber <= 1000
+        && data.sourceFileName is string && data.sourceFileName.size() <= 260
+        && data.sourceMimeType is string && data.sourceMimeType.size() <= 120
+        && data.extractedText is string && data.extractedText.size() <= 120000
+        && data.parties is list && data.parties.size() <= 20
+        && (data.parties.size() == 0 || data.parties[0] is map)
+        && isValidKeyDates(data.keyDates)
+        && isValidSummary(data.summary)
+        && data.clauses is list && data.clauses.size() <= 80
+        && (data.clauses.size() == 0 || data.clauses[0] is map)
+        && data.risks is list && data.risks.size() <= 60
+        && (data.risks.size() == 0 || data.risks[0] is map)
+        && data.contradictions is list && data.contradictions.size() <= 40
+        && (data.contradictions.size() == 0 || data.contradictions[0] is map)
+        && data.missingSections is list && data.missingSections.size() <= 30
+        && (data.missingSections.size() == 0 || data.missingSections[0] is map)
+        && data.legalTerminology is list && data.legalTerminology.size() <= 40
+        && (data.legalTerminology.size() == 0 || data.legalTerminology[0] is map)
+        && isValidAuthenticity(data.authenticity)
+        && isValidHealthAnalysis(data.healthAnalysis)
+        && data.notes is string && data.notes.size() <= 4000
+        && data.locked is bool
+        && data.lockedAt is string && data.lockedAt.size() <= 64
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    match /analysisRules/{ruleId} {
+      allow get: if isSignedIn() && isValidId(ruleId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(ruleId)
+        && isValidAnalysisRule(incoming(), ruleId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if false;
+      allow delete: if isVerifiedUser() && isValidId(ruleId) && existing().ownerId == request.auth.uid;
+    }
+
+    match /contracts/{contractId} {
+      allow get: if isSignedIn() && isValidId(contractId) && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(contractId)
+        && isValidContract(incoming(), contractId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(contractId)
+        && isValidContract(incoming(), contractId)
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (existing().locked == false && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'notes', 'updatedAt']))
+          || (existing().locked == false && incoming().diff(existing()).affectedKeys().hasOnly(['authenticity', 'updatedAt']))
+          || (existing().locked == false && incoming().locked == true && incoming().diff(existing()).affectedKeys().hasOnly(['locked', 'lockedAt', 'updatedAt']))
+        );
+      allow delete: if isVerifiedUser()
+        && isValidId(contractId)
+        && existing().ownerId == request.auth.uid
+        && existing().locked == false;
+    }
+  }
+}
