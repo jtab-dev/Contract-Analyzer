@@ -43,7 +43,9 @@ if not empty:
 positive = ["is covered", "are covered"]
 negative = ["not covered"]
 
-doc = pymupdf.open("archive/.pdf")
+# Context Gathering
+medical = pymupdf.open("archive/.pdf")
+financial = pymupdf.open("archive/")
 analyzer = SentimentIntensityAnalyzer()
 for pages in doc:
     scores = analyzer.polarity_scores(
