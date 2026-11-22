@@ -418,12 +418,112 @@ def get_total(sentences: list[str]) -> float:
     return total
 
 
+AILMENT_SERVICE_REQUIREMENTS = {
+    "essential hypertension": ["primary care", "generic formulary", "prescription"],
+    "prediabetes": ["primary care", "diagnostic laboratory", "preventive"],
+    "mild intermittent asthma": ["primary care", "generic formulary", "prescription"],
+    "seasonal allergic rhinitis": ["primary care", "generic formulary", "prescription"],
+    "uncomplicated urinary tract infection": [
+        "primary care",
+        "generic formulary",
+        "prescription",
+    ],
+}
+
+
+def extract_policy_benefits(policy_array: list[str], cues: list[str]) -> list[str]:
+    """Finds policy chunks triggered by coverage cues and captures subsequent benefit rows."""
+    relevant_chunks = []
+    in_benefits_section = False
+    in_exclusions_section = False
+
+    for chunk in policy_array:
+        lower_chunk = chunk.lower()
+
+        # Stop capturing if we hit exclusions
+        if "exclusions and limitations" in lower_chunk:
+            in_benefits_section = False
+            in_exclusions_section = True
+            continue
+        if "prior authorization and utilization" in lower_chunk:
+            in_exclusions_section = False
+
+        # Trigger capture when any cue matches
+        if any(cue in lower_chunk for cue in cues) and not in_exclusions_section:
+            in_benefits_section = True
+            relevant_chunks.append(chunk)
+        elif in_benefits_section and not in_exclusions_section:
+            # Capture table rows immediately following a "Covered Benefits" header
+            if any(
+                term in lower_chunk
+                for term in [
+                    "copay",
+                    "coinsurance",
+                    "deductible",
+                    "formulary",
+                    "preventive",
+                ]
+            ):
+                relevant_chunks.append(chunk)
+            else:
+                in_benefits_section = False
+
+    return relevant_chunks
+
+
+def extract_ailments(medical_array: list[str]) -> list[dict]:
+    """Isolates the diagnosis block and extracts active/resolved conditions."""
+    ailments = []
+    for chunk in medical_array:
+        if "medical history and active diagnoses" in chunk.lower():
+            # Match pattern: <Condition Name> <MM/DD/YYYY> <Active|Resolved>
+            matches = re.findall(
+                r"([A-Za-z\s]+?)\s+(\d{2}/\d{2}/\d{4})\s+(Active|Resolved)", chunk
+            )
+            for condition, date, status in matches:
+                clean_name = condition.replace(
+                    "Diagnosis Date identified Current status Clinical notes", ""
+                ).strip()
+                ailments.append({"ailment": clean_name, "status": status, "date": date})
+    return ailments
+
+
+def verify_coverage(medical_array: list[str], policy_array: list[str]) -> list[dict]:
+    benefit_chunks = extract_policy_benefits(policy_array, POTENTIAL_COVERAGE_CUES)
+    combined_benefits_text = " ".join(benefit_chunks).lower()
+    ailments = extract_ailments(medical_array)
+
+    verification_results = []
+    for item in ailments:
+        key = item["ailment"].lower()
+        required_services = AILMENT_SERVICE_REQUIREMENTS.get(key, ["primary care"])
+
+        matched_services = [
+            svc for svc in required_services if svc in combined_benefits_text
+        ]
+
+        is_covered = len(matched_services) > 0
+        verification_results.append(
+            {
+                "ailment": item["ailment"],
+                "status": item["status"],
+                "is_covered": is_covered,
+                "matched_policy_services": matched_services,
+                "missing_services": [
+                    s for s in required_services if s not in matched_services
+                ],
+            }
+        )
+
+    return verification_results
+
+
 # ---------- FRONT STACK -----------------
 # Upload a File
 st.title("Contract Analyzer")
 
 willing_cost = st.number_input(
-    "How much are you able to spend on health insurance, monthly?",
+    "How much are you able to spend on health insurance, annually?",
     value=None,
     placeholder="Input in USD ($)",
 )
@@ -462,14 +562,28 @@ if uploaded_file is not None:
         st.title("Financial Analysis")
         cost = get_total(new_parsed)
         if willing_cost > cost:
-            st.write(f":{'green'}[{'You can afford health insurance !!!!!!!!'}]")
+            st.write(f":{'green'}[{'You can afford this health insurance !!!!!!!!'}]")
             st.write(f"${willing_cost}     >     ${cost}")
         else:
             st.write(
-                f":{'red'}[{'You cannot afford health insurance :((((((((((((((('}]"
+                f":{'red'}[{'You cannot afford this health insurance :((((((((((((((('}]"
             )
             st.write(f"${willing_cost}     <     ${cost}")
     # Coverage Analysis
+    st.title("Coverage Analysis")
+    st.write(f":{'green'}[Green] = Covered | :{'red'}[Red] = Not Covered")
+
+    history = get_pdf_text("archive/medical_history.pdf")
+    history_parsed = get_page_sentences(history)
+
+    coverage = verify_coverage(history_parsed, new_parsed)
+    for item in coverage:
+        if item.get("is_covered"):
+            color = "green"
+        else:
+            color = "red"
+        st.write(f":{color}[{item.get('ailment')}] : {item.get('status')}")
+
     # Color PDF Text
     st.title("Full-text Overview")
     get_color(results)
