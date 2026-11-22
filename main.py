@@ -19,6 +19,8 @@ os.makedirs(nltk_data_dir, exist_ok=True)
 nltk.data.path.insert(0, nltk_data_dir)
 nltk.download("punkt_tab", download_dir=nltk_data_dir)
 
+analyzer = SentimentIntensityAnalyzer()
+
 
 # -------- Function Definitions -------------
 def get_pdf_text(pdf_path: str) -> list[str]:
@@ -35,8 +37,25 @@ def get_page_sentences(pages: list[str]) -> list[str]:
     return result
 
 
-def analyze_sentiment():
-    return
+def analyze_sentiment(sentences: list[str]):
+    results = []
+    for sentence in sentences:
+        if not isinstance(sentence, str):
+            continue
+        if not sentence.strip():
+            continue
+        scores = analyzer.polarity_scores(sentence)
+
+        results.append(
+            {
+                "sentence": sentence,
+                "positive": scores["pos"],
+                "negative": scores["neg"],
+                "neutral": scores["neu"],
+                "compound": scores["compound"],
+            }
+        )
+    return results
 
 
 # Context Gathering
@@ -46,8 +65,9 @@ standards = get_pdf_text("archive/standards.pdf")
 
 medical_parsed = get_page_sentences(medical)
 financial_parsed = get_page_sentences(financial)
+standards_parsed = get_page_sentences(standards)
 
-
+# ---------- FRONT STACK -----------------
 # Upload a File
 st.title("Contract Analyzer")
 uploaded_file = st.file_uploader("Choose a file to analyze")
