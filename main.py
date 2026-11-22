@@ -35,6 +35,10 @@ def get_page_sentences(pages: list[str]) -> list[str]:
     return result
 
 
+def analyze_sentiment():
+    return
+
+
 # Context Gathering
 medical = get_pdf_text("archive/medical_history.pdf")
 financial = get_pdf_text("archive/financial_history.pdf")
