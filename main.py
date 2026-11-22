@@ -6,7 +6,6 @@ from pathlib import Path
 import os
 import re
 import time
-import shutil
 import sys
 
 import streamlit as st
