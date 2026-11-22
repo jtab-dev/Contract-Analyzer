@@ -18,7 +18,9 @@ nltk.download("punkt_tab")
 
 # -------- Function Definitions -------------
 def get_pdf_text(pdf_path: str) -> list[str]:
-    result = [] with pymupdf.open(pdf_path) as doc: for page in doc:
+    result = []
+    with pymupdf.open(pdf_path) as doc:
+        for page in doc:
             result.append(page.get_text())
 
     return result
