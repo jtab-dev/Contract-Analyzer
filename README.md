@@ -10,4 +10,5 @@ Installed Packages:
 - `PyMuPDF`
 - `VaderSentiment`
 - `NLTK`
+
 Through `pip install <package>`
