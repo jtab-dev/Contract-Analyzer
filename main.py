@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 import time
 import shutil
+import sys
 
 import streamlit as st
 import pymupdf
@@ -13,7 +14,10 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import nltk
 from nltk.tokenize import sent_tokenize
 
-nltk.download("punkt_tab")
+nltk_data_dir = os.path.join(sys.prefix, "nltk_data")
+os.makedirs(nltk_data_dir, exist_ok=True)
+nltk.data.path.insert(0, nltk_data_dir)
+nltk.download("punkt_tab", download_dir=nltk_data_dir)
 
 
 # -------- Function Definitions -------------
@@ -37,9 +41,7 @@ financial = get_pdf_text("archive/financial_history.pdf")
 standards = get_pdf_text("archive/standards.pdf")
 
 medical_parsed = get_page_sentences(medical)
-for sentence in medical_parsed:
-    st.write(sentence)
-    st.write("-----NEW SENTENCE-------")
+financial_parsed = get_page_sentences(financial)
 
 
 # Upload a File
