@@ -384,27 +384,50 @@ def analyze_sentiment(sentences: list[str]):
         )
     return results
 
-def get_color(score):
-    if score
+
+def get_color(data: list[dict]):
+    for item in data:
+        sentence = item["sentence"]
+        score = item["compound"]
+
+        if score > 0.05:
+            color = "green"
+        elif score < -0.05:
+            color = "red"
+        else:
+            color = "gray"
+
+        safe_sentence = (
+            sentence.replace("\\", "\\\\")
+            .replace("[", r"\[")
+            .replace("]", r"\]")
+            .replace("$", r"\$")
+        )
+
+        st.write(f":{color}[{safe_sentence}] '({score})'")
 
 
-# Context Gathering
-'''
-medical = get_pdf_text("archive/medical_history.pdf")
-financial = get_pdf_text("archive/financial_history.pdf")
-standards = get_pdf_text("archive/standards.pdf")
+def get_total(sentences: list[str]) -> float:
+    total = 0.0
+    for sentence in sentences:
+        amounts = re.findall(
+            r"\$(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)", sentence
+        )
+        for amount in amounts:
+            total += float(amount.replace(",", ""))
+    return total
 
-medical_parsed = get_page_sentences(medical)
-financial_parsed = get_page_sentences(financial)
-standards_parsed = get_page_sentences(standards)
 
-analyze_sentiment(medical_parsed)
-analyze_sentiment(financial_parsed)
-analyze_sentiment(standards_parsed) 
-'''
 # ---------- FRONT STACK -----------------
 # Upload a File
 st.title("Contract Analyzer")
+
+willing_cost = st.number_input(
+    "How much are you able to spend on health insurance, monthly?",
+    value=None,
+    placeholder="Input in USD ($)",
+)
+
 uploaded_file = st.file_uploader("Choose a file to analyze")
 folder = Path("uploads")
 folder.mkdir(parents=True, exist_ok=True)
@@ -417,13 +440,8 @@ if uploaded_file is not None:
         st.success(f"Saved {uploaded_file.name}!")
 time.sleep(0.05)
 
-
-# Start Analyzing Uploaded File
-empty = True
-for _ in os.scandir("uploads"):
-    empty = False
-    break
-if not empty:
+# --------- MACHINE LEARNING PIPELINE ----------------
+if uploaded_file is not None:
     message = "Generating Analysis..."
     placeholder = st.empty()
     current_text = ""
@@ -432,23 +450,27 @@ if not empty:
         placeholder.write(current_text)
         time.sleep(0.02)
 
-
-# --------- MACHINE LEARNING PIPELINE ----------------
-if uploaded_file is not None:
     file_path = folder / uploaded_file.name
     new = get_pdf_text(file_path)
     new_parsed = get_page_sentences(new)
     results = analyze_sentiment(new_parsed)
     # --------- MACHINE LEARNING PIPELINE ----------------
 
-    # --------- OUTPUT ------------ Financial Analysis Then Coverage Analysis Then Colored PDF TEXT
-    for item in results:
-        st.write(item["sentence"])
+    # --------- OUTPUT ------------ Financial Analysis Then Coverage Analysis
+    # Financial Analysis
+    if willing_cost is not None:
+        st.title("Financial Analysis")
+        cost = get_total(new_parsed)
+        if willing_cost > cost:
+            st.write(f":{'green'}[{'You can afford health insurance !!!!!!!!'}]")
+            st.write(f"${willing_cost}     >     ${cost}")
+        else:
+            st.write(
+                f":{'red'}[{'You cannot afford health insurance :((((((((((((((('}]"
+            )
+            st.write(f"${willing_cost}     <     ${cost}")
+    # Coverage Analysis
+    # Color PDF Text
+    st.title("Full-text Overview")
+    get_color(results)
 # --------- OUTPUT ------------
-
-
-# Put Uploaded Files into the Archive for furhter Reference
-'''
-for file in os.scandir("uploads"):
-    shutil.move("uploads/" + file.name, "archive/" + file.name)
-'''
