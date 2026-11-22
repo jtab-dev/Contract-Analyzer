@@ -10,16 +10,34 @@ import shutil
 import streamlit as st
 import pymupdf
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+import nltk
+from nltk.tokenize import sent_tokenize
+
+nltk.download("punkt_tab")
 
 
 # -------- Function Definitions -------------
 def get_pdf_text(pdf_path: str) -> list[str]:
-    result = []
-    with pymupdf.open(pdf_path) as doc:
-        for page in doc:
+    result = [] with pymupdf.open(pdf_path) as doc: for page in doc:
             result.append(page.get_text())
 
     return result
+
+
+def get_page_sentences(pages: list[str]) -> list[str]:
+    result = [sentence for para in pages for sentence in nltk.sent_tokenize(para)]
+    return result
+
+
+# Context Gathering
+medical = get_pdf_text("archive/medical_history.pdf")
+financial = get_pdf_text("archive/financial_history.pdf")
+standards = get_pdf_text("archive/standards.pdf")
+
+medical_parsed = get_page_sentences(medical)
+for sentence in medical_parsed:
+    st.write(sentence)
+    st.write("-----NEW SENTENCE-------")
 
 
 # Upload a File
@@ -53,19 +71,14 @@ if not empty:
 
 
 # --------- MACHINE LEARNING PIPELINE ----------------
-positive = ["is covered", "are covered"]
-negative = ["not covered"]
-
-# Context Gathering
-medical = get_pdf_text("archive/medical_history.pdf")
-financial = get_pdf_text("archive/financial_history.pdf")
-standards = get_pdf_text("archive/standards.pdf")
 
 # --------- MACHINE LEARNING PIPELINE ----------------
 
+
 # --------- OUTPUT ------------
 # --------- OUTPUT ------------
 # --------- OUTPUT ------------
+
 
 # Put Uploaded Files into the Archive for furhter Reference
 for file in os.scandir("uploads"):
